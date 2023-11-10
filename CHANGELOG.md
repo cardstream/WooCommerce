@@ -27,3 +27,10 @@ Fields added to Apple Pay gateway validation request.
 
 Incorrect action when initial subscription payment amount is 0.
 Missing customer country on hosted form.
+
+## [3.0.4] - 2023-11-02
+
+### Fixed
+
+Incorrect handling of non 3DS or frictionless transactions 
+using direct integration.

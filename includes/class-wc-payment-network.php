@@ -814,7 +814,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		if ((int)$response['responseCode'] === 0) {
 
 			$this->debug_log('INFO', "Payment for order {$response['orderRef']} was successful");
-			$this->on_order_success($response);
+			return $this->on_order_success($response);
 		} else if ((int)$response['responseCode'] === 65802) {
 
 			return $this->on_threeds_required($response);
