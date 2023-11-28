@@ -34,3 +34,9 @@ Missing customer country on hosted form.
 
 Incorrect handling of non 3DS or frictionless transactions 
 using direct integration.
+
+## [3.0.5] - 2023-11-20
+
+### Fixed
+
+Missing merchant details when refunding.

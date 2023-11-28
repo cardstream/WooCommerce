@@ -17,17 +17,12 @@ class WC_Payment_Network extends WC_Payment_Gateway
 	/**
 	 * @var string
 	 */
-	public $default_merchant_id;
+	public $merchant_id;
 
 	/**
 	 * @var string
 	 */
-	public $default_merchant_country_code;
-
-	/**
-	 * @var string
-	 */
-	public $default_secret;
+	public $merchant_country_code;
 
 	/**
 	 * @var Gateway
@@ -84,6 +79,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		$this->title					= $this->settings['title'];
 		$this->description				= $this->settings['description'];
 		$this->merchant_signature_key	= $this->settings['signature'];
+		$this->merchant_id				= $this->settings['merchantID'];
+		$this->merchant_country_code	= $this->settings['merchant_country_code'];
 		static::$logging_options		= (empty($this->settings['logging_options']) ? null : array_flip(array_map('strtoupper', $this->settings['logging_options'])));
 
 		$this->gateway = new Gateway(
@@ -143,7 +140,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 				'title'       => __('Merchant ID', $this->lang),
 				'type'        => 'text',
 				'description' => __('Please enter your ' . $this->method_title . ' merchant ID', $this->lang),
-				'default'     => $this->default_merchant_id,
+				'default'     => $this->merchant_id,
 				'custom_attributes' => [
 					'required'        => true,
 				],
@@ -152,7 +149,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 				'title'       => __('Merchant country code', $this->lang),
 				'type'        => 'text',
 				'description' => __('Please enter your ' . $this->method_title . ' merchant country code', $this->lang),
-				'default'     => $this->default_merchant_country_code,
+				'default'     => $this->merchant_country_code,
 				'custom_attributes' => [
 					'required'        => true,
 				],
@@ -161,7 +158,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 				'title'       => __('Signature Key', $this->lang),
 				'type'        => 'text',
 				'description' => __('Please enter the signature key for the merchant account.', $this->lang),
-				'default'     => $this->default_secret,
+				'default'     => $this->merchant_signature_key,
 				'custom_attributes' => [
 					'required'        => true,
 				],
@@ -450,21 +447,15 @@ class WC_Payment_Network extends WC_Payment_Gateway
 			return new WP_Error('error', __('Refund failed.', 'woocommerce'));
 		}
 
-		$gateway = new Gateway(
-			$this->defaultMerchantID,
-			$this->defaultMerchantSignature,
-			$this->defaultGatewayURL
-		);
-
 		// Query the transaction state.
 		$queryPayload = [
-			'merchantID' => $this->defaultMerchantID,
+			'merchantID' => $this->merchant_id,
 			'xref' => $transactionXref,
 			'action' => 'QUERY',
 		];
 
 		// Sign the request and send to gateway.
-		$transaction = $gateway->directRequest($queryPayload);
+		$transaction = $this->gateway->directRequest($queryPayload);
 
 		if (empty($transaction['state'])) {
 			return new WP_Error('error', "Could not get the transaction state for {$transactionXref}");
@@ -476,7 +467,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 
 		// Build the refund request
 		$refundRequest = [
-			'merchantID' => $this->defaultMerchantID,
+			'merchantID' => $this->merchant_id,
 			'xref' => $transactionXref,
 		];
 
@@ -504,7 +495,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		}
 
 		// Sign the refund request and sign it.
-		$refundResponse = $gateway->directRequest($refundRequest);
+		$refundResponse = $this->gateway->directRequest($refundRequest);
 
 		// Handle the refund response
 		if (empty($refundResponse) && empty($refundResponse['responseCode'])) {
@@ -655,7 +646,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		$xref = $xrefs[max(array_keys($xrefs))];
 
 		$req = array(
-			'merchantID' => $this->settings['merchantID'],
+			'merchantID' => $this->merchant_id,
 			'xref' => $xref,
 			'amount' => \P3\SDK\AmountHelper::calculateAmountByCurrency($amount_to_charge, $renewal_order->get_currency()),
 			'action' => "SALE",
@@ -741,7 +732,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 			$this->debug_log('DEBUG', 'ACS Postback data', $_POST);
 
 			$req = array(
-				'merchantID' => $this->settings['merchantID'],
+				'merchantID' => $this->merchant_id,
 				// The following field must be passed to continue the 3DS request
 				'threeDSRef' => $_COOKIE['threeDSRef'],
 				'threeDSResponse' => $_POST,
@@ -859,9 +850,9 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		// Fields for hash
 		$req = array(
 			'action'				=> ($amount == 0 ? 'VERIFY' : 'SALE'),
-			'merchantID'			=> $this->settings['merchantID'],
+			'merchantID'			=> $this->merchant_id,
 			'amount'				=> $amount,
-			'countryCode'			=> $this->settings['merchant_country_code'],
+			'countryCode'			=> $this->merchant_country_code,
 			'currencyCode'			=> $order->get_currency(),
 			'transactionUnique'		=> uniqid($order->get_order_key() . '-'),
 			'orderRef'				=> $order_id,
@@ -916,7 +907,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 				$wpdb->prepare(
 					"SELECT wallets_id FROM $wallet_table_name WHERE users_id = %d AND merchants_id = %d LIMIT 1",
 					get_current_user_id(),
-					$this->settings['merchantID']
+					$this->merchant_id
 				)
 			);
 
@@ -982,7 +973,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 				$wpdb->prepare(
 					"SELECT wallets_id FROM $wallet_table_name WHERE users_id = %d AND merchants_id = %d AND wallets_id = %d LIMIT 1",
 					$order->get_user_id(),
-					$this->settings['merchantID'],
+					$this->merchant_id,
 					$response['walletID']
 				)
 			);
@@ -992,7 +983,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 				//Add walletID to request.
 				$wpdb->insert($wallet_table_name, [
 					'users_id' => $order->get_user_id(),
-					'merchants_id' => $this->settings['merchantID'],
+					'merchants_id' => $this->merchant_id,
 					'wallets_id' => $response['walletID']
 				]);
 			}
