@@ -931,6 +931,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 			'samesite' => 'None'
 		]);
 
+		$req = apply_filters('PaymentNetwork_capture_order', $req, $order);
+
 		return $req;
 	}
 
