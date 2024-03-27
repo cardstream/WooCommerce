@@ -141,7 +141,7 @@ class Gateway
 
 		if ($iframe) {
 			$htmlForm = <<<HTML
-<iframe id="paymentgatewayframe" name="paymentgatewayframe" frameBorder="0" seamless="seamless" style="width:699px; height:1100px;margin: 0 auto;display:block;"></iframe>
+<iframe id="paymentgatewayframe" name="paymentgatewayframe" frameBorder="0" seamless="seamless" style="width:100%; height:1800px;margin: 0 auto;display:block;"></iframe>
 HTML;
 			$htmlForm .= self::silentPost($url, $request, 'paymentgatewayframe');
 		} else {
