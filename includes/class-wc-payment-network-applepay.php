@@ -86,6 +86,7 @@ class WC_Payment_Network_ApplePay extends WC_Payment_Gateway
 
 	public function __construct()
 	{
+		global $wp_query;
 
 		// Include the module config file.
 		$configs = include dirname(__FILE__) . '/../config.php';
@@ -133,8 +134,9 @@ class WC_Payment_Network_ApplePay extends WC_Payment_Gateway
 		// Register hooks.
 		add_action('woocommerce_scheduled_subscription_payment_' . $this->id, array($this, 'process_scheduled_subscription_payment_callback'), 10, 3);
 		add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+		
 		// Enqueue Apple Pay script when main site.
-		if (is_checkout() || is_cart()) {
+		if (isset($wp_query) && (is_checkout() || is_cart())) {
 			add_action('wp_enqueue_scripts', array($this, 'payment_scripts'));
 		}
 		// Enqueue Admin scripts when in plugin settings.

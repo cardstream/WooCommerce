@@ -40,3 +40,9 @@ using direct integration.
 ### Fixed
 
 Missing merchant details when refunding.
+
+## [3.0.6] - 2024-04-24
+
+### Fixed
+
+Function called incorrectly error appearing in log.
