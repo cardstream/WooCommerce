@@ -233,7 +233,6 @@ class WC_Payment_Network extends WC_Payment_Gateway
 				'deviceAcceptContent'		=> (isset($_SERVER['HTTP_ACCEPT']) ? htmlentities($_SERVER['HTTP_ACCEPT']) : '*/*'),
 				'deviceAcceptEncoding'		=> (isset($_SERVER['HTTP_ACCEPT_ENCODING']) ? htmlentities($_SERVER['HTTP_ACCEPT_ENCODING']) : '*'),
 				'deviceAcceptLanguage'		=> (isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) ? htmlentities($_SERVER['HTTP_ACCEPT_LANGUAGE']) : 'en-gb;q=0.001'),
-
 			];
 
 			$browserInfo = '';
@@ -863,7 +862,10 @@ class WC_Payment_Network extends WC_Payment_Gateway
 			'customerTown'			=> $order->get_billing_city(),
 			'customerPostCode'		=> $order->get_billing_postcode(),
 			'customerEmail'			=> $order->get_billing_email(),
-			'merchantData'			=> 'WC - ' . $this->module_version,
+			'merchantData'      => json_encode(array(
+				'platform' => 'WooCommerce',
+				'version' => $this->module_version
+			)),
 		);
 
 		$phone = $order->get_billing_phone();

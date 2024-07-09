@@ -1,4 +1,4 @@
-const debuggingOn = true;
+const debuggingOn = false;
 const ApplePayVersion = 4;
 var ApplePayRequest;
 

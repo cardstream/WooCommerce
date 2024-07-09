@@ -46,3 +46,14 @@ Missing merchant details when refunding.
 ### Fixed
 
 Function called incorrectly error appearing in log.
+
+## [3.1.0] - 2024-05-08
+
+### Fixed
+
+Incorrect Apple Pay validation URL being passed to Gateway.
+
+Missing WorldWide shipping zones on Apple Pay shipping selection.
+
+Shipping zones that require a coupon will now not be returned unless a valid
+coupon is present.
