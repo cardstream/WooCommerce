@@ -151,7 +151,6 @@ class WC_Payment_Network_ApplePay extends WC_Payment_Gateway
 		$this->init_form_fields();
 	}
 
-
 	/**
 	 * Generate CSR and private key
 	 * ----------------------------
@@ -505,12 +504,13 @@ HTML;
 		if ($this->gatewayMerchantValidation === 'yes') {
 
 			$this->debug_log('INFO', "Gateway validation method enabled");
+			$this->debug_log('INFO', "Gateway validation method enabled", $validationURL);
 
 			// Request validation from gateway.
 			$gatewayRequest = array(
 				'merchantID' => $this->defaultMerchantID,
 				'process' => 'applepay.validateMerchant',
-				'validationURL' => 'https://apple-pay-gateway-cert.apple.com/paymentservices/paymentSession',
+				'validationURL' => $validationURL,
 				'displayName' => $this->settings['merchant_display_name'],
 				'domainName' => $apwDomainName,
 				'action' => 'VERIFY',
@@ -681,7 +681,10 @@ HTML;
 			'transactionUnique' => uniqid($order->get_order_key() . "-"),
 			'type' => '1',
 			'paymentMethod' => 'applepay',
-			'merchantData' => 'WC_APPLEPAY - ' . $this->module_version,
+			'merchantData' => json_encode(array(
+				'platform' => 'WooCommerce',
+				'version' => $this->module_version
+			)),
 			'paymentToken' => $paymentData->token->paymentData,
 			'customerName' => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
 			'customerAddress' => $order->get_billing_address_1() . '\n' . $order->get_billing_address_2(),
@@ -1094,24 +1097,28 @@ HTML;
 		$zones = WC_Shipping_Zones::get_zones();
 		$countryCode = $shippingContactSelectDetails->countryCode;
 		$newShippingMethods = array();
+
 		// Get the chosen shipping method from the session data.
 		$shippingMethodSelected =  WC()->session->get('chosen_shipping_methods')[0];
 
+		// Get coupons.
+		$appliedCoupons = WC()->cart->get_applied_coupons();
+
+		// For each shipping zone try to match with customer country code.
 		foreach ($zones as $zone) {
+			$shippingZoneID = new WC_Shipping_Zone($zone['id']);
 			foreach ($zone['zone_locations'] as $zonelocation) {
 				if ($zonelocation->code === $countryCode) {
-					foreach ($zone['shipping_methods'] as $shippingMethod) {
-						array_push($newShippingMethods, array(
-							'label' => strip_tags($shippingMethod->method_title),
-							'detail' => strip_tags($shippingMethod->method_description),
-							'amount' => (isset($shippingMethod->cost) ? $shippingMethod->cost : 0),
-							'identifier' => $shippingMethod->id . ':' . $shippingMethod->instance_id,
-							'selected' => ($shippingMethodSelected === ($shippingMethod->id . ':' . $shippingMethod->instance_id)),
-						));
-					}
+					$newShippingMethods = $this->get_shipping_methods_from_zone($shippingZoneID, $appliedCoupons);
 				}
 			}
 		}
+
+		// If no shipping methods have been returned then try and return the default zone 0.
+		if (($catchAllZone = new WC_Shipping_Zone(0)) && (count($newShippingMethods) === 0)) {
+			$newShippingMethods =  $this->get_shipping_methods_from_zone($catchAllZone, $appliedCoupons);
+		}
+
 		WC()->customer->set_shipping_country($countryCode);
 		// Set selected shipping method or top one as default
 		WC()->session->set('chosen_shipping_methods', array($shippingMethodSelected));
@@ -1127,6 +1134,45 @@ HTML;
 		);
 
 		wp_send_json_success($JSONResponse);
+	}
+
+	/**
+	 * Get shipping methods from shipping zones
+	 * 
+	 * @param WC_Shipping_Zone $zone
+	 */
+	private function get_shipping_methods_from_zone($zone, $appliedCoupons) {
+
+		$freeShippingCoupon = false;
+
+		// For each coupon, if free shipping then set free shipping method allowed.
+		foreach ($appliedCoupons as $couponCode) {
+			$coupon = new WC_Coupon($couponCode);
+			if ($coupon->get_free_shipping()) {
+				$freeShippingCoupon = true;
+			}
+		}
+
+		$newShippingMethods = array();
+
+		$shippingMethods = $zone->get_shipping_methods();
+
+		foreach ($shippingMethods as $shippingMethod) {
+			if ($shippingMethod->requires == "coupon" && !$freeShippingCoupon) {
+				continue;
+			} else {
+				array_push($newShippingMethods, array(
+					'label' => strip_tags($shippingMethod->method_title),
+					'detail' => strip_tags($shippingMethod->method_description),
+					'amount' => (strlen($shippingMethod->cost) ? (float)$shippingMethod->cost : 0),
+					'identifier' => $shippingMethod->id . ':' . $shippingMethod->instance_id,
+					'selected' => ($shippingMethodSelected === ($shippingMethod->id . ':' . $shippingMethod->instance_id))
+				));
+			}
+		}
+
+		return ($newShippingMethods ?? false); 
+
 	}
 
 	/**
