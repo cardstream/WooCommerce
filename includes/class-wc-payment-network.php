@@ -1,6 +1,5 @@
 <?php
 
-use P3\SDK\CreditCard;
 use P3\SDK\Gateway;
 
 /**
@@ -47,6 +46,12 @@ class WC_Payment_Network extends WC_Payment_Gateway
 	 */
 	protected $module_version;
 
+	/**
+	 * Key used to generate the nonce for AJAX calls.
+	 * @var string
+	 */
+	protected $nonce_key;
+
 	public function __construct()
 	{
 		$configs = include(dirname(__FILE__) . '/../config.php');
@@ -58,6 +63,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		$this->method_title			= __($configs['default']['gateway_title'], $this->lang);
 		$this->method_description	= __($configs['default']['method_description'], $this->lang);
 		$this->module_version 		= (file_exists(dirname(__FILE__) . '/../VERSION') ? file_get_contents(dirname(__FILE__) . '/../VERSION') : "UV");
+
+		$this->nonce_key = '312b9f8852142b9c8fbc';
 
 		$this->supports = array(
 			'subscriptions',
@@ -90,12 +97,12 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		);
 
 		// Hooks
-		add_action('wp_enqueue_scripts', array($this, 'payment_scripts'));
+		add_action('wp_enqueue_scripts', array($this, 'payment_scripts'),0);
 		add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 		add_action('woocommerce_receipt_' . $this->id, array($this, 'receipt_page'));
 
 		add_action('woocommerce_api_wc_' . $this->id, array($this, 'process_response_callback'));
-		add_action('woocommerce_scheduled_subscription_payment_' . $this->id, array($this, 'process_scheduled_subscription_payment_callback'), 10, 3);
+		add_action('woocommerce_scheduled_subscription_payment_' . $this->id, array($this, 'process_scheduled_subscription_payment_callback'));
 	}
 
 	/**
@@ -125,7 +132,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 					'hosted'     => 'Hosted',
 					'hosted_v2'  => 'Hosted (Embedded)',
 					'hosted_v3'  => 'Hosted (Modal)',
-					'direct'     => 'Direct 3-D Secure',
+					'direct'     => 'Direct 3DS',
 				),
 				'description' => __('This controls method of integration.', $this->lang),
 				'default'     => 'hosted'
@@ -217,13 +224,9 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		}
 
 		if ($this->settings['type'] === 'direct') {
-			$parameters = [
-				'cardNumber'         => @$_POST['cardNumber'],
-				'cardExpiryMonth'    => @$_POST['cardExpiryMonth'],
-				'cardExpiryYear'     => @$_POST['cardExpiryYear'],
-				'cardCVV'            => @$_POST['cardCVV'],
-			];
 
+			// These default values for the device information will be replaced by
+			// the actual device information (if obtainable) when Hosted Fields is being used.
 			$deviceData = [
 				'deviceChannel'				=> 'browser',
 				'deviceIdentity'			=> (isset($_SERVER['HTTP_USER_AGENT']) ? htmlentities($_SERVER['HTTP_USER_AGENT']) : null),
@@ -238,135 +241,85 @@ class WC_Payment_Network extends WC_Payment_Gateway
 			$browserInfo = '';
 
 			foreach ($deviceData as $key => $value) {
-				$browserInfo .= '<input type="hidden" id="' . $key . '" name="browserInfo[' . $key . ']" value="' . htmlentities($value) . '" />';
+				echo '<input type="hidden" id="' . $key . '" name="browserInfo[' . $key . ']" value="' . htmlentities($value) . '" />';
 			}
 
-			$generateMonthOptions = function () use ($parameters) {
-				$str = '';
-				foreach (range(1, 12) as $value) {
-					$s = $parameters['cardExpiryMonth'] == ($value ? 'selected' : '');
-					$str .= '<option value="' . str_pad($value, 2, '0', STR_PAD_LEFT) . '" ' . $s . '>' . $value . '</option>' . "\n";
-				}
+			$merchantID = $this->settings['merchantID'];
 
-				return $str;
-			};
+			echo <<<HTML
 
-			$generateYearOptions = function () use ($parameters) {
-				$str = '';
-				foreach (range(date('Y'), date('Y') + 12) as $value) {
-					$s = $parameters['cardExpiryYear'] == ($value ? 'selected' : '');
-					$str .= '<option value="' . substr($value, 2) . '" ' . $s . '>' . $value . '</option>' . "\n";
-				}
-
-				return $str;
-			};
-
-			echo
-			/** @lang html */
-			<<<FORM
-			<div style = 'display:flex; flex-direction:column; margin-bottom: 1vh;'>
-			<label>Card Number</label>
-			<input type = 'text' id = 'field-cardNumber' name = 'cardNumber' value = '{$parameters['cardNumber']}' maxlength = '23' required = 'required'/>
-			</div>
-			<div style = 'display:flex; place-content:center space-between;'>
-			<div style = 'flex-direction: column; width: 45%; display: flex;'>
-			<label>Card Expiry Date</label>
-			<div>
-			<select style = 'width: 45%;' id = 'field-cardExpiryMonth' name = 'cardExpiryMonth' required = 'required'>
-			<option value = '' disabled selected>Month</option>
-			{$generateMonthOptions()}
-				</select>
-				<select style = 'width: 45%;' id = 'field-cardExpiryYear' name = 'cardExpiryYear' required = 'required'>
-				<option value = '' disabled selected>Year</option>
-				{$generateYearOptions()}
-					</select>
-					</div>
-					</div>
-					<div style = 'width: 40%; flex-direction: column; display: flex;'>
-					<label>CVV</label>
-					<input type = 'text' id = 'field-cardCVV' name = 'cardCVV' value = "{$parameters['cardCVV']}" maxlength = '4' required = 'required'/>
-					</div>
-					</div>
-					<br/>
-					$browserInfo
-					<script>
-					var screen_width = ( window && window.screen ? window.screen.width : '0' );
-					var screen_height = ( window && window.screen ? window.screen.height : '0' );
-					var screen_depth = ( window && window.screen ? window.screen.colorDepth : '0' );
-					var identity = ( window && window.navigator ? window.navigator.userAgent : '' );
-					var language = ( window && window.navigator ? ( window.navigator.language ? window.navigator.language : window.navigator.browserLanguage ) : '' );
-					var timezone = ( new Date() ).getTimezoneOffset();
-					var java = ( window && window.navigator ? navigator.javaEnabled() : false );
-					document.getElementById( 'deviceIdentity' ).value = identity;
-					document.getElementById( 'deviceTimeZone' ).value = timezone;
-					document.getElementById( 'deviceCapabilities' ).value = 'javascript' + ( java ? ',java' : '' );
-					document.getElementById( 'deviceAcceptLanguage' ).value = language;
-					document.getElementById( 'deviceScreenResolution' ).value = screen_width + 'x' + screen_height + 'x' + screen_depth;
-					</script>
-					<script type = 'text/javascript'>
-					var cardNumber = document.getElementById( 'field-cardNumber' );
-
-					payform.cardNumberInput( cardNumber );
-					cardNumber.addEventListener( 'change', e => {
-						e.target.style.borderColor = payform.validateCardNumber( e.target.value ) ? '#B0B0B0' : 'red';
-
+				<style class="hf-input-style">
+					.hostedfield {
+						font-size: 20px;
+						font-weight: 500;
+						padding: 4px;
 					}
-				);
+					.hostedfield:invalid {
+						border: 1px solid #ff2b2b;
+							
+					}
+					.hostedfield:valid {
+						border: 1px solid #1fb52c;		
+					}
+				</style>	
 
-				document.getElementById( 'field-cardCVV' ).addEventListener( 'change', e => {
-					e.target.style.borderColor = payform.validateCardCVC( e.target.value ) ? '#B0B0B0' : 'red';
+				<!-- Card payment container (hosted fields) -->
+				<div id="payment-options-container" class="hf-box-container">
 
-				}
-			);
+					<input type="hidden" id="merchantID" name="merchantID" value="{$merchantID}">
+					<input type="hidden" id="paymentToken" name="paymentToken" value="">
+					<input type="hidden" id="hosted-fields-security-code" name="hosted-fields-security-code" value="">
+					<input type="hidden" id="hosted-fields-error-input" name="hosted-fields-error-input" value="">
 
-			var cardExpiryMonthElement = document.getElementById( 'field-cardExpiryMonth' );
-			var cardExpiryYearElement = document.getElementById( 'field-cardExpiryYear' );
+					<div class="hf-container-col">
+						<label for="form-card-number">Card Number</label>
+						<input
+						id="form-card-number"
+						type="hostedfield:cardNumber"
+						name="card-number"
+						autocomplete="cc-number"
+						required
+						data-hostedfield='{"stylesheet":"style.hf-input-style", "placeholder":"Card Number", "submitOnEnter":false}'>
+					</div>
 
-			var listener = e => {
-				let isValid = payform.validateCardExpiry( cardExpiryMonthElement.value, '20'+cardExpiryYearElement.value );
+					<div class="hf-container-row">
 
-				cardExpiryMonthElement.style.borderColor =  isValid ? '#B0B0B0' : 'red';
+						<div class="hf-container-col">
+							<label for="form-card-cvv">Expiry Date</label>
+							<input
+							id="form-card-expiry-date"
+							type="hostedfield:cardExpiryDate"
+							name="card-expiry-date"
+							autocomplete="cc-exp"
+							required 
+							data-hostedfield='{"stylesheet":"style.hf-input-style", "placeholder":"MM/YY", "submitOnEnter":false}'>
+						</div>
 
-				cardExpiryYearElement.style.borderColor = isValid ? '#B0B0B0' : 'red';
+						<div class="hf-container-col">
+							<label for="form-card-cvv">CVV</label>
+							<input
+							id="form-card-cvv"
+							type="hostedfield:cardCVV"
+							name="card-cvv"
+							autocomplete="cc-csc"
+							required 
+							data-hostedfield='{"stylesheet":"style.hf-input-style", "placeholder":"CVV", "submitOnEnter":false}'>
+						</div>
 
+					</div>
+
+					<div id="hosted-fields-error" class="hf-container-row hosted-fields-error"></div>
+
+				</div>
+
+				<script>
+					// Trigger payment fields ready event.
+					document.body.dispatchEvent(new Event("payment-fields-ready"))
+				</script>
+	HTML;
 			}
-			;
-
-			cardExpiryMonthElement.addEventListener( 'change', listener );
-			cardExpiryYearElement.addEventListener( 'change', listener );
-			</script>
-			FORM;
-
-			wp_enqueue_style('gateway-credit-card-styles', plugins_url('assets/css/gateway.css', dirname(__FILE__)));
-
-		}
-
 		// Output Module version as HTML comment on checkout page.
 		echo "<!-- WC Module Version: {$this->module_version} -->";
-	}
-
-	public function validate_fields()
-	{
-		if ($this->settings['type'] === 'direct') {
-			$result = CreditCard::validCreditCard($_POST['cardNumber']);
-
-			if (!$result['valid']) {
-				wc_add_notice('Not a valid Card Number. Please check the card details.', 'error');
-				return false;
-			}
-
-			if (!CreditCard::validDate('20' . $_POST['cardExpiryYear'], $_POST['cardExpiryMonth'])) {
-				wc_add_notice('Not a valid Expiry Date. Please check the card details.', 'error');
-				return false;
-			}
-
-			if (!CreditCard::validCvc($_POST['cardCVV'], $result['type'])) {
-				wc_add_notice('Not a valid Card CVV. Please check the card details.', 'error');
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 	/**
@@ -390,15 +343,18 @@ class WC_Payment_Network extends WC_Payment_Gateway
 			);
 		}
 
+		// If this is not a Hosted Form request then verify a secuirty 
+		// code was submitted with the payment token.
+		if (!wp_verify_nonce($_POST['hosted-fields-security-code'], $this->nonce_key)) {
+			wp_die();
+		}
+
 		$args = array_merge(
 			$this->capture_order($order_id),
 			$_POST['browserInfo'],
 			[
 				'type'                 => 1,
-				'cardNumber'           => $_POST['cardNumber'],
-				'cardExpiryMonth'      => $_POST['cardExpiryMonth'],
-				'cardExpiryYear'       => $_POST['cardExpiryYear'],
-				'cardCVV'              => $_POST['cardCVV'],
+				'paymentToken'         => $_POST['paymentToken'],
 				'remoteAddress'        => $_SERVER['REMOTE_ADDR'],
 				'threeDSRedirectURL'   => add_query_arg(
 					[
@@ -1039,10 +995,6 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		}
 	}
 
-	##########################
-	## Other Functions
-	##########################
-
 	public function payment_scripts()
 	{
 		// we need JavaScript to process a token only on cart/checkout pages, right?
@@ -1055,9 +1007,59 @@ class WC_Payment_Network extends WC_Payment_Gateway
 			return;
 		}
 
-		// and this is our custom JS in your plugin directory that works with token.js
-		wp_register_script('woocommerce_payform', plugins_url('assets/js/payform.js', dirname(__FILE__)), array('jquery'));
-		wp_enqueue_script('woocommerce_payform');
+		// Register and enqueue PaymentFields CSS
+		wp_enqueue_style('hosted_payment_fields_css', plugins_url('/', dirname(__FILE__)) . 'assets/css/hostedfields.css',null,	rand(99,9999));
+	
+		// Register PaymentFields JavaScript
+		$gatewayURL = $this->settings['gatewayURL'];
+		$hostedFieldsURL = "{$gatewayURL}/sdk/web/v1/js/hostedfields.min.js";
+		
+		wp_enqueue_script(
+			'hosted_payment_fields_jquery_min', 
+			'https://code.jquery.com/jquery-3.4.1.min.js'
+		);
+
+		wp_enqueue_script(
+			'hosted_payment_fields_jquery_validate', 
+			'https://cdn.jsdelivr.net/npm/jquery-validation@1.19.1/dist/jquery.validate.min.js',
+			['hosted_payment_fields_jquery_min']
+		);
+
+		wp_enqueue_script(
+			'hosted_payment_fields_gateway_javascript', 
+			$hostedFieldsURL,
+			null,
+			'1.0',
+		);
+
+		wp_enqueue_script(
+			'hosted_payment_fields_script', 
+			plugins_url('/', dirname(__FILE__)) . 'assets/js/hostedfields.js',
+			['hosted_payment_fields_gateway_javascript'],
+			'1.0',
+		);
+
+		wp_localize_script('hosted_payment_fields_script', 'hfLocalizeVars', array(
+			'securitycode' => wp_create_nonce($this->nonce_key),
+		));
+		
+	}
+
+	/**
+	 * Validates Hosted Fields data.
+	 */
+	public function validate_fields()
+	{
+		// If this is a direct integration and there are Hosted Fields error
+		// add them to WC error notices.
+		if ($this->settings['type'] === 'direct') {
+			if (!empty($_POST['hosted-fields-error-input'])) {
+				wc_add_notice($_POST['hosted-fields-error-input'], 'error');
+				return false;
+			}
+		}
+		// If no errors return true.
+		return true;
 	}
 
 	/**

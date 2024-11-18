@@ -1,0 +1,23 @@
+.hosted-fields-error {
+	color: red;
+}
+
+.hf-box-container {
+	max-width: 320px;
+}
+
+.hf-container-row {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	width: 100%;
+	gap: 10px;
+}
+
+.hf-container-col {
+	display: flex;
+	flex-direction: column;
+	flex-basis: 100%;
+	flex: 1;
+	padding-bottom:5px;
+}
