@@ -31,16 +31,19 @@ function init_wc_payment_network()
 		return;
 	}
 
-	add_filter('plugin_action_links', 'add_wc_payment_network_action_plugin', 10, 5);
+	// Load classes required.
+	include('includes/p3/php-sdk/src/Gateway.php');
+	include('includes/p3/php-sdk/src/Client.php');
+	include('includes/p3/php-sdk/src/AmountHelper.php');
+	include('includes/p3/php-sdk/src/CreditCard.php');
 
-	require_once __DIR__ . '/vendor/autoload.php';
+	add_filter('plugin_action_links', 'add_wc_payment_network_action_plugin', 10, 5);
 
 	add_filter('woocommerce_payment_gateways', 'add_payment_network_payment_gateway');
 
 	/**
 	 * Add Apple Pay AJAX options
 	 */
-
 	include('includes/class-wc-payment-network.php');
 	include('includes/class-wc-payment-network-applepay.php');
 

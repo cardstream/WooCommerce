@@ -57,3 +57,16 @@ Missing WorldWide shipping zones on Apple Pay shipping selection.
 
 Shipping zones that require a coupon will now not be returned unless a valid
 coupon is present.
+
+
+## [3.2.0] - 2024-05-08
+
+### Added
+Added Hosted Fields to Direct 3DS integration.
+
+### Removed
+Removed payform JavaScript in replacement for Hosted Fields.
+Removed files no longer required.
+
+### Changed
+Moved Gateway SDK to new location.

@@ -1,6 +1,9 @@
 <?php
 
+
 namespace P3\SDK;
+
+include('ClientInterface.php');
 
 /**
  * Class Client

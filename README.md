@@ -8,7 +8,7 @@ This module enables the use of https://gateway.cardstream.com payment gateway us
 COMPATIBILITY
 ------------
 
-Compatible with version 6.x of Woocommerce and upto 6.x of Wordpress. 
+Compatible with version 6.x of Woocommerce and upto 6.x of Wordpress.
 
 REQUIREMENTS
 ------------
@@ -46,7 +46,7 @@ Manual installation
 
 2. Activate the plugin through the Plugins menu in WordPress
 
-3. Go to WooCommerce -> Settings and click on the Checkout tab. 
+3. Go to WooCommerce -> Settings and click on the Checkout tab.
 
 4. Find Cardstream in the Payment Gateways section 
 
@@ -59,7 +59,7 @@ Rebrand Instructions
 --------------------
 
 The module does not require any editing of file to be used. The options can be changed via the plugin settings.
-However you can pre set some of the branding options by by editing the config.php file. 
+However you can pre set some of the branding options by by editing the config.php file.
 This will allow you to set the defaults which are :
 
 gateway_title is the title of the module that will appear to the user when selecting the payment method on the checkout.
@@ -79,5 +79,4 @@ You will then need to select an integration type to use.
 The module will also need to be enabled so it appears as a payment option on the checkout.
 
 **NOTE:**
- The gateway_validation_available flag should only be set to true if your Gateway Merchant ID has been enabled for Apple Pay. Enabling it without gateway configuration could result in issues with transactions. 
-
+ The gateway_validation_available flag should only be set to true if your Gateway Merchant ID has been enabled for Apple Pay. Enabling it without gateway configuration could result in issues with transactions.
