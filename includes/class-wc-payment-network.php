@@ -102,7 +102,7 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		add_action('woocommerce_receipt_' . $this->id, array($this, 'receipt_page'));
 
 		add_action('woocommerce_api_wc_' . $this->id, array($this, 'process_response_callback'));
-		add_action('woocommerce_scheduled_subscription_payment_' . $this->id, array($this, 'process_scheduled_subscription_payment_callback'));
+		add_action('woocommerce_scheduled_subscription_payment_' . $this->id, array($this, 'process_scheduled_subscription_payment_callback'), 10, 2);
 	}
 
 	/**
