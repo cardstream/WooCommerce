@@ -199,8 +199,13 @@ class WC_Payment_Network_ApplePay extends WC_Payment_Gateway
 	 * Enqueues the Javascript needed for the
 	 * plugin settings page
 	 */
-	public function enqueue_admin_scripts()
+	public function enqueue_admin_scripts($hook)
 	{
+		// Prevent Admin JS being queued on anything but the paymet settings page.
+		if ($hook != 'woocommerce_page_wc-settings') {
+			return;
+		}
+
 		$optionPrefix = "woocommerce_{$this->id}_";
 		$certificateData = get_option($optionPrefix . 'merchantCert');
 		$certificatekeyData = get_option($optionPrefix . 'merchantCertKey');
