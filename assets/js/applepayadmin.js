@@ -1,9 +1,6 @@
 window.onload = function () {
 
-  // Add listener to document body to check when payment fields are ready.
-	jQuery(document.body).on("apple-pay-admin-loaded", function () {
-		setupApplePayAdminJS();
-	});
+  setupApplePayAdminJS();
 
   function setupApplePayAdminJS() {
 

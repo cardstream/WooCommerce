@@ -70,3 +70,9 @@ Removed files no longer required.
 
 ### Changed
 Moved Gateway SDK to new location.
+
+## [3.2.1] - 2025-05-29
+
+### Fixed
+Incorrect number of arguments being required to process subscription payments.
+Apple Pay help icon not displaying the help window when using own certificates.  
