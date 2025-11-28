@@ -333,7 +333,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 	public function process_payment($order_id)
 	{
 
-		$order = new WC_Order($order_id);
+		// $order = new WC_Order($order_id);
+		$order = wc_get_order($order_id);
 		$this->debug_log('INFO', "Processing payment for order {$order_id}");
 
 		if (in_array($this->settings['type'], ['hosted', 'hosted_v2', 'hosted_v3'], true)) {
@@ -502,7 +503,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 
 	public function on_order_success($response)
 	{
-		$order = new WC_Order((int)$response['orderRef']);
+		// $order = new WC_Order((int)$response['orderRef']);
+		$order = wc_get_order((int)$response['orderRef']);
 
 		$order_notes = '';
 
@@ -714,7 +716,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 		}
 
 		// Get the WC Order that matched the orderRef in the response.
-		$order = new WC_Order((int)$response['orderRef']);
+		// $order = new WC_Order((int)$response['orderRef']);
+		$order = wc_get_order((int)$response['orderRef']);
 
 		// If order has been paid and this a callback log and ignore.
 		if (isset($_GET['callback']) && $order->is_paid()) {
@@ -781,7 +784,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 	 */
 	protected function capture_order($order_id)
 	{
-		$order     = new WC_Order($order_id);
+		// $order     = new WC_Order($order_id);
+		$order     = wc_get_order($order_id);
 		$amount    = \P3\SDK\AmountHelper::calculateAmountByCurrency($order->get_total(), $order->get_currency());
 
 		$billing_address  = $order->get_billing_address_1();
@@ -921,7 +925,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 			return;
 		}
 
-		$order = new WC_Order((int)$response['orderRef']);
+		// $order = new WC_Order((int)$response['orderRef']);
+		$order = wc_get_order((int)$response['orderRef']);
 
 		//when the wallets is enabled, the user is logged in and there is a wallet ID in the response.
 		if ($this->settings['customerWalletsEnabled'] === 'Y' && isset($response['walletID']) && $order->get_user_id() != 0) {
@@ -966,7 +971,8 @@ class WC_Payment_Network extends WC_Payment_Gateway
 
 		$redirectUrl = get_site_url();
 		if (isset($response['orderRef'], $response['responseCode'], $response['responseMessage'])) {
-			$order = new WC_Order((int)$response['orderRef']);
+			// $order = new WC_Order((int)$response['orderRef']);
+			$order = wc_get_order((int)$response['orderRef']);
 
 			$order_notes = '';
 
