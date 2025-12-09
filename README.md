@@ -1,6 +1,6 @@
 Disclaimer: Please note that we no longer support older versions of SDKs and Modules. We recommend that the latest versions are used.
 
-Cardstream Woocommerce Plugin v3.0.0
+Cardstream Woocommerce Plugin v3.2.1
 ==============
 
 This module enables the use of https://gateway.cardstream.com payment gateway using the Woocommerce project http://www.woothemes.com.
